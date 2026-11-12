@@ -19,7 +19,7 @@ type Row = { lesson: string; module: string | null; url: string | null; content:
 export async function searchLessons(supabase: SupabaseClient, query: string): Promise<string> {
   const q = (query ?? "").toString().slice(0, 200).trim();
   if (!q) return "No query given.";
-  const { data, error } = await supabase.rpc("search_kb", { query: q, match_count: 6 });
+  const { data, error } = await supabase.rpc("search_kb", { query: q, match_count: 4 });
   if (error) {
     console.error("[search_kb]", error.message);
     return "The lesson search is unavailable right now. Answer from the knowledge files.";
@@ -29,7 +29,7 @@ export async function searchLessons(supabase: SupabaseClient, query: string): Pr
   return rows
     .map(
       (r, i) =>
-        `[${i + 1}] Lesson: ${r.lesson}${r.module ? ` | Module: ${r.module}` : ""}${r.url ? ` | Link: ${r.url}` : ""}\n${r.content.slice(0, 2200)}`,
+        `[${i + 1}] Lesson: ${r.lesson}${r.module ? ` | Module: ${r.module}` : ""}${r.url ? ` | Link: ${r.url}` : ""}\n${r.content.slice(0, 1200)}`,
     )
     .join("\n\n---\n\n");
 }

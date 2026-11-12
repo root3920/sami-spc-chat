@@ -8,12 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 const DAILY_LIMIT = Number(process.env.DAILY_MESSAGE_LIMIT || 60);
 const REQUIRE_MEMBERSHIP = process.env.REQUIRE_MEMBERSHIP === "true";
 const MAX_MESSAGE_CHARS = 4000;
-const HISTORY_LIMIT = 24;
-const MAX_TOOL_ROUNDS = 3;
+const HISTORY_LIMIT = 10;
+const MAX_TOOL_ROUNDS = 1;
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -25,7 +25,10 @@ function titleFrom(text: string) {
 }
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) return jsonError("ANTHROPIC_API_KEY is not configured on the server.", 503);
+  const rawKey = process.env.ANTHROPIC_API_KEY ?? "";
+  const apiKey = rawKey.replace(/^[\s"']+|[\s"']+$/g, "");
+  if (!apiKey) return jsonError("ANTHROPIC_API_KEY is not configured on the server.", 503);
+  if (!apiKey.startsWith("sk-ant-")) console.warn("[chat] ANTHROPIC_API_KEY has an unexpected format");
 
   const supabase = await createClient();
   const {
@@ -93,7 +96,7 @@ export async function POST(req: Request) {
   }
   while (history.length && history[0].role !== "user") history.shift();
 
-  const anthropic = new Anthropic();
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY?.trim() });
   const encoder = new TextEncoder();
   const convId = conversationId;
 
@@ -101,6 +104,8 @@ export async function POST(req: Request) {
     async start(controller) {
       let fullText = "";
       let inputTokens = 0;
+      let cacheReadTokens = 0;
+      let cacheWriteTokens = 0;
       let outputTokens = 0;
       let aborted = false;
       let current: { abort: () => void } | null = null;
@@ -115,7 +120,7 @@ export async function POST(req: Request) {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
           const ms = anthropic.messages.stream({
             model: MODEL,
-            max_tokens: 2048,
+            max_tokens: 1024,
             system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
             tools: round < MAX_TOOL_ROUNDS ? [SEARCH_TOOL] : [],
             messages,
@@ -126,10 +131,9 @@ export async function POST(req: Request) {
             controller.enqueue(encoder.encode(delta));
           });
           const final: Anthropic.Message = await ms.finalMessage();
-          inputTokens +=
-            (final.usage.input_tokens ?? 0) +
-            (final.usage.cache_read_input_tokens ?? 0) +
-            (final.usage.cache_creation_input_tokens ?? 0);
+          inputTokens += final.usage.input_tokens ?? 0;
+          cacheReadTokens += final.usage.cache_read_input_tokens ?? 0;
+          cacheWriteTokens += final.usage.cache_creation_input_tokens ?? 0;
           outputTokens += final.usage.output_tokens ?? 0;
 
           if (final.stop_reason !== "tool_use") break;
@@ -151,11 +155,15 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         if (!aborted) {
+          if (err instanceof Anthropic.APIError && err.status === 401) {
+            console.error("[chat] Anthropic rejected the API key (401)");
+          }
           console.error("[chat] Anthropic error", err);
           controller.enqueue(encoder.encode(ERROR_MARKER));
         }
       } finally {
         req.signal.removeEventListener("abort", onAbort);
+        console.log("[sami usage]", { model: MODEL, input: inputTokens, cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens, output: outputTokens });
         const content = fullText.trim();
         if (content) {
           await supabase.from("messages").insert({
@@ -163,7 +171,7 @@ export async function POST(req: Request) {
             user_id: user.id,
             role: "assistant",
             content,
-            input_tokens: inputTokens,
+            input_tokens: inputTokens + cacheReadTokens + cacheWriteTokens,
             output_tokens: outputTokens,
           });
         }
