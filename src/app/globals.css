@@ -91,4 +91,40 @@ body {
     animation: none;
     opacity: 0.6;
   }
+  .sami-float {
+    animation: none;
+  }
+  .sami-wobble {
+    animation: none;
+  }
+}
+
+/* Sami float animation for empty state */
+.sami-float {
+  animation: sami-float 3s ease-in-out infinite;
+}
+@keyframes sami-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Sami wobble for thinking indicator */
+.sami-wobble {
+  animation: sami-wobble 1.2s ease-in-out infinite;
+}
+@keyframes sami-wobble {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* Thinking dots */
+.thinking-dots::after {
+  content: '';
+  animation: thinking-dots 1.5s steps(4, end) infinite;
+}
+@keyframes thinking-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
 }

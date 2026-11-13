@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sami · Your SPC Guide | HIC Parenting",
+  title: "Sami · Tu guía del SPC",
   description: "Sami, the Secure Parent companion for members of the Secure Parent Collective by HIC Parenting Education.",
-  icons: { icon: "/icon.png" },
+  icons: { icon: "/sami/icon.png", apple: "/sami/apple-icon.png" },
 };
 
 export const viewport: Viewport = {

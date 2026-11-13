@@ -328,10 +328,10 @@ function PlusIcon() {
 function Avatar({ size = 36 }: { size?: number }) {
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-full border border-[#ffd8a8] bg-[#fff4e6]"
+      className="grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-[#ffd8a8] bg-[#fff4e6]"
       style={{ width: size, height: size }}
     >
-      <img src="/icon.png" alt="" style={{ height: size * 0.62 }} className="w-auto" />
+      <img src="/sami/sami-avatar.png" alt="" style={{ width: size, height: size }} className="object-cover object-top" />
     </span>
   );
 }
@@ -379,8 +379,12 @@ function Sidebar(props: {
         open ? "translate-x-0" : "-translate-x-full"
       }`}
     >
-      <div className="flex items-center justify-between px-4 pb-3 pt-4">
-        <img src="/logo-white.png" alt="HIC Parenting Education" className="h-10 w-auto" />
+      <div className="flex items-center gap-3 px-4 pb-3 pt-4">
+        <Avatar size={40} />
+        <div>
+          <p className="text-[15px] font-extrabold text-white">Sami</p>
+          <p className="text-xs text-white/60">{t.samiGuide}</p>
+        </div>
       </div>
       <div className="px-3">
         <button
@@ -497,19 +501,52 @@ function Sidebar(props: {
         <p className="truncate text-xs text-white/50" title={props.userEmail}>
           {props.userEmail}
         </p>
+        <div className="mt-3 flex items-center gap-1.5 opacity-70">
+          <span className="text-[10px] text-white/50">by</span>
+          <img src="/logo-white.png" alt="HIC Parenting" className="h-6 w-auto" />
+        </div>
       </div>
     </aside>
   );
 }
 
+function SnowflakeSVG({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 function EmptyState({ t, onPick }: { t: Strings; onPick: (s: string) => void }) {
   return (
-    <div className="relative mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6">
-      <Avatar size={64} />
-      <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-        {t.greetingTitle} <span className="text-brand-dark">💛</span>
-      </h2>
-      <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted">{t.greeting}</p>
+    <div className="relative mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6" style={{ background: "linear-gradient(to bottom, #fffaf3, #ffffff)" }}>
+      {/* Decorative snowflakes */}
+      <SnowflakeSVG className="pointer-events-none absolute left-6 top-8 text-navy/[0.15]" />
+      <SnowflakeSVG className="pointer-events-none absolute right-10 top-16 text-brand/[0.15]" />
+      <SnowflakeSVG className="pointer-events-none absolute bottom-20 left-12 text-navy-700/[0.12]" />
+
+      {/* Floating Sami */}
+      <div className="flex flex-col items-center">
+        <img
+          src="/sami/sami-full.png"
+          alt="Sami, la pingüina de HIC"
+          className="sami-float h-[170px] w-auto"
+        />
+        {/* Elliptical shadow */}
+        <div className="mt-2 h-3 w-20 rounded-full bg-navy/10 blur-sm" />
+      </div>
+
+      {/* Speech bubble */}
+      <div className="relative mt-6 rounded-2xl border border-line bg-white px-6 py-4 shadow-sm">
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 rotate-45 border-l border-t border-line bg-white" style={{ width: 14, height: 14 }} />
+        <h2 className="relative text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
+          {t.greetingTitle} <span className="text-brand-dark">🐧</span>
+        </h2>
+        <p className="relative mt-3 max-w-xl text-[15px] leading-relaxed text-muted">{t.greeting}</p>
+      </div>
+
       <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs font-extrabold uppercase tracking-[0.1em] text-navy-700">
         <span className="rounded-full border border-line bg-white px-3 py-1">Emotional regulation</span>
         <span className="rounded-full border border-line bg-white px-3 py-1">Mindsight</span>
@@ -545,14 +582,16 @@ function MessageRow({ m, t, onRetry }: { m: ChatMessage; t: Strings; onRetry: ()
   }
   return (
     <div className="flex gap-3">
-      <Avatar />
+      {m.pending && !m.content ? (
+        <span className="sami-wobble shrink-0"><Avatar /></span>
+      ) : (
+        <Avatar />
+      )}
       <div className="min-w-0 flex-1 pt-1.5">
         {m.content ? <Markdown text={m.content} /> : null}
         {m.pending && !m.content && (
-          <span className="inline-flex gap-1.5 py-2" aria-label="Sami is typing">
-            <i className="typing-dot h-2 w-2 rounded-full bg-navy-700" />
-            <i className="typing-dot h-2 w-2 rounded-full bg-navy-700" />
-            <i className="typing-dot h-2 w-2 rounded-full bg-navy-700" />
+          <span className="inline-flex items-center gap-1.5 py-2 text-sm text-muted">
+            {t.samiThinking}<span className="thinking-dots" />
           </span>
         )}
         {m.error && (
