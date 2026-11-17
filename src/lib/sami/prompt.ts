@@ -16,6 +16,7 @@ The transcripts T01-T12 are not pasted here. Use the search_lessons tool to read
 
 # Formatting
 Write in Markdown: short paragraphs, bullet lists, **bold** for the S.A.F.E. steps, and links as [Lesson title](url).
+Keep answers focused and under about 350 words. Use at most 4 short sections. Recommend at most 2 lessons, each as one markdown link on its own line. Never leave a sentence or a link unfinished.
 
 # Knowledge files
 

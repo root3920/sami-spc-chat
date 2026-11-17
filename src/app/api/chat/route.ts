@@ -107,6 +107,7 @@ export async function POST(req: Request) {
       let cacheReadTokens = 0;
       let cacheWriteTokens = 0;
       let outputTokens = 0;
+      let lastStopReason = "";
       let aborted = false;
       let current: { abort: () => void } | null = null;
       const onAbort = () => {
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
           const ms = anthropic.messages.stream({
             model: MODEL,
-            max_tokens: 1024,
+            max_tokens: 3000,
             system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
             tools: round < MAX_TOOL_ROUNDS ? [SEARCH_TOOL] : [],
             messages,
@@ -135,6 +136,34 @@ export async function POST(req: Request) {
           cacheReadTokens += final.usage.cache_read_input_tokens ?? 0;
           cacheWriteTokens += final.usage.cache_creation_input_tokens ?? 0;
           outputTokens += final.usage.output_tokens ?? 0;
+          lastStopReason = final.stop_reason ?? "";
+
+          if (final.stop_reason === "max_tokens") {
+            // One continuation call so Sami can finish the truncated answer
+            const contMessages: Anthropic.MessageParam[] = [
+              ...messages,
+              { role: "assistant", content: fullText },
+              { role: "user", content: "Continúa exactamente donde quedaste, sin repetir nada. Cierra la respuesta de forma natural." },
+            ];
+            const contMs = anthropic.messages.stream({
+              model: MODEL,
+              max_tokens: 3000,
+              system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+              messages: contMessages,
+            });
+            current = contMs;
+            contMs.on("text", (delta: string) => {
+              fullText += delta;
+              controller.enqueue(encoder.encode(delta));
+            });
+            const contFinal: Anthropic.Message = await contMs.finalMessage();
+            inputTokens += contFinal.usage.input_tokens ?? 0;
+            cacheReadTokens += contFinal.usage.cache_read_input_tokens ?? 0;
+            cacheWriteTokens += contFinal.usage.cache_creation_input_tokens ?? 0;
+            outputTokens += contFinal.usage.output_tokens ?? 0;
+            lastStopReason = contFinal.stop_reason ?? "";
+            break;
+          }
 
           if (final.stop_reason !== "tool_use") break;
 
@@ -163,7 +192,7 @@ export async function POST(req: Request) {
         }
       } finally {
         req.signal.removeEventListener("abort", onAbort);
-        console.log("[sami usage]", { model: MODEL, input: inputTokens, cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens, output: outputTokens });
+        console.log("[sami usage]", { model: MODEL, input: inputTokens, cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens, output: outputTokens, stop_reason: lastStopReason });
         const content = fullText.trim();
         if (content) {
           await supabase.from("messages").insert({
